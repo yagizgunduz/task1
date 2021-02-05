@@ -1,0 +1,216 @@
+import csv
+import numpy as np
+
+import pandas as pd
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import time
+
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn import tree
+from sklearn.neural_network import MLPClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import ExtraTreesClassifier
+
+
+#This was my naive attack for the problem :)
+#Weights of X properties:
+#Y = target attribute (Y) with values indicating 0 (unhappy) and 1 (happy) customers -> 100
+#X1 = my order was delivered on time -> 5
+#X2 = contents of my order was as I expected -> 4
+#X3 = I ordered everything I wanted to order -> 3
+#X4 = I paid a good price for my order -> 4
+#X5 = I am satisfied with my courier -> 1
+#X6 = the app makes ordering easy for me -> 3
+#If a customer gives 5 points for all properties, It adds up to 100 as you can see
+
+result = 0
+def check(X1, X2, X3, X4, X5, X6):
+    global result
+    if(X1*5 + X2*4 + X3*3 + X4*4 + X5*1 + X6*3 > 73): #If a customer is 73% satisfied
+        result += 1
+    #73% is the upper limit for at least 73% happines for customers. Therefore I chose it.
+
+with open('ACME-HappinessSurvey2020.csv', 'r') as csv_file:
+    csv_reader = csv.reader(csv_file)
+
+    next(csv_reader)
+    for line in csv_reader:
+        #Check not happy customers
+        if(int(line[0]) == 0):
+            check(int(line[1]), int(line[2]), int(line[3]), int(line[4]), int(line[5]), int(line[6]))
+
+        #Happy customers directly count in
+        result += int(line[0])
+
+    print("My naive percentage:")
+    print(result/126.0)
+    print("\n")
+#This is the end of my naive attack
+
+#Here starts the analysis of data
+df_survey = pd.read_csv('ACME-HappinessSurvey2020.csv',sep="," )
+print(df_survey.head())
+print("\n")
+print(df_survey.describe())
+print("\n")
+print(df_survey.cov())
+#These two lines show the graphically depicting groups of numerical data through their quartiles
+df_survey.boxplot()
+plt.show()
+
+
+from scipy import stats
+#remove outlier here.
+#An outlier of a dataset is defined as a value that is more than 3 standard deviations from the mean.
+df1_survey = df_survey[(np.abs(stats.zscore(df_survey)) < 3).all(axis=1)]
+print("\n")
+
+df1_survey.boxplot()
+plt.show()
+
+#Split the data into training and test set
+y = df1_survey.iloc[:,0:1]
+X = df1_survey.iloc[:,1:]
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+
+from sklearn.preprocessing import StandardScaler
+feature_scaler = StandardScaler()
+X_train = feature_scaler.fit_transform(X_train)
+X_test = feature_scaler.transform(X_test)
+
+dict_classifiers = {
+    "Logistic Regression": LogisticRegression(),
+    "Nearest Neighbors": KNeighborsClassifier(),
+    "Linear SVM": SVC(),
+    "Gradient Boosting Classifier": GradientBoostingClassifier(),
+    "Decision Tree": tree.DecisionTreeClassifier(),
+    "Random Forest": RandomForestClassifier(n_estimators=18),
+    "Neural Net": MLPClassifier(alpha=1),
+    "Naive Bayes": GaussianNB(),
+    "Extra Trees Classifier": ExtraTreesClassifier(n_estimators=18)
+}
+# Use 10-fold Cross-validation.
+from sklearn.model_selection import cross_val_score
+
+# Logistic Regression
+log_reg = LogisticRegression()
+log_scores = cross_val_score(log_reg, X_train, y_train, cv=10)
+log_reg_mean = log_scores.mean()
+
+# SVC
+svc_clf = SVC()
+svc_scores = cross_val_score(svc_clf, X_train, y_train, cv=10)
+svc_mean = svc_scores.mean()
+
+# KNearestNeighbors
+knn_clf = KNeighborsClassifier()
+knn_scores = cross_val_score(knn_clf, X_train, y_train, cv=10)
+knn_mean = knn_scores.mean()
+
+# Decision Tree
+tree_clf = tree.DecisionTreeClassifier()
+tree_scores = cross_val_score(tree_clf, X_train, y_train, cv=10)
+tree_mean = tree_scores.mean()
+
+# Gradient Boosting Classifier
+grad_clf = GradientBoostingClassifier()
+grad_scores = cross_val_score(grad_clf, X_train, y_train, cv=10)
+grad_mean = grad_scores.mean()
+
+# Random Forest Classifier
+rand_clf = RandomForestClassifier(n_estimators=10)
+rand_scores = cross_val_score(rand_clf, X_train, y_train, cv=10)
+rand_mean = rand_scores.mean()
+
+# NeuralNet Classifier
+neural_clf = MLPClassifier(alpha=1)
+neural_scores = cross_val_score(neural_clf, X_train, y_train, cv=10)
+neural_mean = neural_scores.mean()
+
+# Naives Bayes
+nav_clf = GaussianNB()
+nav_scores = cross_val_score(nav_clf, X_train, y_train, cv=10)
+nav_mean = neural_scores.mean()
+
+ #ExtraTreesClassifier
+ext_clf = ExtraTreesClassifier(n_estimators=10)
+ext_scores = cross_val_score(ext_clf, X_train, y_train, cv=10)
+ext_mean = ext_scores.mean()
+
+
+
+
+from sklearn.model_selection import cross_val_predict
+
+y_test_pred_1 = cross_val_predict(grad_clf, X_test, y_test, cv=10)
+y_test_pred_2 = cross_val_predict(log_reg, X_test, y_test, cv=10)
+y_test_pred_3 = cross_val_predict(svc_clf, X_test, y_test, cv=10)
+y_test_pred_4 = cross_val_predict(knn_clf, X_test, y_test, cv=10)
+y_test_pred_5 = cross_val_predict(tree_clf, X_test, y_test, cv=10)
+y_test_pred_6 = cross_val_predict(rand_clf, X_test, y_test, cv=10)
+y_test_pred_7 = cross_val_predict(neural_clf, X_test, y_test, cv=10)
+y_test_pred_8 = cross_val_predict(nav_clf, X_test, y_test, cv=10)
+y_test_pred_9 = cross_val_predict(ext_clf, X_test, y_test, cv=10)
+
+from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
+
+print("Gradient Boosting Classifier -------------------------------------------------")
+print('Accuracy Score: ', accuracy_score(y_test, y_test_pred_1))
+print('Precision Score: ', precision_score(y_test, y_test_pred_1))
+print('Recall Score: ', recall_score(y_test, y_test_pred_1))
+print('F1 Score: ', f1_score(y_test, y_test_pred_1))
+print("Logistic Regression -------------------------------------------------")
+print('Accuracy Score: ', accuracy_score(y_test, y_test_pred_2))
+print('Precision Score: ', precision_score(y_test, y_test_pred_2))
+print('Recall Score: ', recall_score(y_test, y_test_pred_2))
+print('F1 Score: ', f1_score(y_test, y_test_pred_2))
+print("SVM -------------------------------------------------")
+print('Accuracy Score: ', accuracy_score(y_test, y_test_pred_3))
+print('Precision Score: ', precision_score(y_test, y_test_pred_3))
+print('Recall Score: ', recall_score(y_test, y_test_pred_3))
+print('F1 Score: ', f1_score(y_test, y_test_pred_3))
+print("KNeighbors Classifier-------------------------------------------------")
+print('Accuracy Score: ', accuracy_score(y_test, y_test_pred_4))
+print('Precision Score: ', precision_score(y_test, y_test_pred_4))
+print('Recall Score: ', recall_score(y_test, y_test_pred_4))
+print('F1 Score: ', f1_score(y_test, y_test_pred_4))
+print("Decision Trees Classifier-------------------------------------------------")
+print('Accuracy Score: ', accuracy_score(y_test, y_test_pred_5))
+print('Precision Score: ', precision_score(y_test, y_test_pred_5))
+print('Recall Score: ', recall_score(y_test, y_test_pred_5))
+print('F1 Score: ', f1_score(y_test, y_test_pred_5))
+print("Random Forest Classifier-------------------------------------------------")
+print('Accuracy Score: ', accuracy_score(y_test, y_test_pred_6))
+print('Precision Score: ', precision_score(y_test, y_test_pred_6))
+print('Recall Score: ', recall_score(y_test, y_test_pred_6))
+print('F1 Score: ', f1_score(y_test, y_test_pred_6))
+print("MLP Classifier-------------------------------------------------")
+print('Accuracy Score: ', accuracy_score(y_test, y_test_pred_7))
+print('Precision Score: ', precision_score(y_test, y_test_pred_7))
+print('Recall Score: ', recall_score(y_test, y_test_pred_7))
+print('F1 Score: ', f1_score(y_test, y_test_pred_7))
+print("GaussianNB-------------------------------------------------")
+print('Accuracy Score: ', accuracy_score(y_test, y_test_pred_8))
+print('Precision Score: ', precision_score(y_test, y_test_pred_8))
+print('Recall Score: ', recall_score(y_test, y_test_pred_8))
+print('F1 Score: ', f1_score(y_test, y_test_pred_8))
+print("Extra Trees Classifier -------------------------------------------------")
+print('Accuracy Score: ', accuracy_score(y_test, y_test_pred_9))
+print('Precision Score: ', precision_score(y_test, y_test_pred_9))
+print('Recall Score: ', recall_score(y_test, y_test_pred_9))
+print('F1 Score: ', f1_score(y_test, y_test_pred_9))
+
+print("\n")
+print("Logistic Regression has the highest and proper Accuracy and F1 score so we can choose it")
